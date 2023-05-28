@@ -24,7 +24,7 @@ router.get("/prova", (req, res) => {
 // Use the router to handle requests to the `/.netlify/functions/api` path
 //app.use(`/.netlify/functions/api`, router);
 app.use('/', router); 
-app.listen(process.env.port || 3000); 
+app.listen(process.env.port || 5000); 
 // Export the app and the serverless function
 module.exports = app;
 module.exports.handler = serverless(app);
