@@ -3,7 +3,6 @@ var router = express.Router();
 const MongoClient = require("mongodb").MongoClient
 const dotenv = require('dotenv');
 dotenv.config(); // Carica le variabili d'ambiente da .env
-console.log(process.env.DB_URL);
 const uri = "mongodb+srv://kekko4000:Francesco.2000@kekko4000.svazekq.mongodb.net/?retryWrites=true&w=majority";
 const multer = require('multer');
 const path = require('path');
@@ -39,7 +38,7 @@ var upload = multer({
     storage: storage
 });
 
-//https://apisifim.onrender.com/
+//https://apisifim.onrender.com/images/
 //http://localhost:5000/images/
 //Viene caricato il percorso della foto nel database
 router.post('/files', upload.array('files'), async (req, res) => {
@@ -50,7 +49,7 @@ router.post('/files', upload.array('files'), async (req, res) => {
     const collection = database.collection("ImagesBuildings");
     const images = [];
     for (let i = 0; i < req.files.length; i++) {
-      const imgsrc = 'https://apisifim.onrender.com/' + req.files[i].filename;
+      const imgsrc = 'https://apisifim.onrender.com/images/' + req.files[i].filename;
       images.push(imgsrc);
     }
     const imagesBuild = {
@@ -256,7 +255,7 @@ router.post('/add', function (req, res, next) {
           res.status(500).json({ error: "Si è verificato un errore durante la registrazione dell'utente." });
         } else {
           const insertedId = result.insertedId;
-          res.status(200).json({ message: "Utente registrato con successo!" ,insertedId} );
+          res.status(200).json({ message: "Immobile aggiunto con successo!" ,insertedId} );
         }
       });
 
