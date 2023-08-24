@@ -1,11 +1,24 @@
 var express = require('express');
 var router = express.Router();
 var bcrypt = require("bcrypt");
-const mongoose = require("mongoose");
-const MongoClient = require("mongodb").MongoClient
-const uri = "mongodb+srv://kekko4000:Francesco.2000@kekko4000.svazekq.mongodb.net/?retryWrites=true&w=majority";
 
-var database
+const { MongoClient } = require("mongodb");
+const uri =  process.env.DB_URL;
+
+
+async function connect() {
+  try {
+    const client = new MongoClient(uri, { useNewUrlParser: true });
+    await client.connect();
+    const database = client.db("Users");
+    console.log("Connected to MongoDB!");
+    return database;
+  } catch (error) {
+    console.error("Error connecting to MongoDB:", error);
+    throw error;
+  }
+}
+
 
 
 function hashPassword(password) {
@@ -24,20 +37,7 @@ function hashPassword(password) {
   });
 }
 
-async function connect() {
-  try {
-    MongoClient.connect(uri, { useNewUrlParser: true }, (error, result) => {
-      if (error) throw error
-      database = result.db("Users")
 
-    });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
-  } catch {
-    console.log("error");
-  }
-}
-
-connect();
 
 /* GET users listing. */
 router.get('/', function (req, res, next) {
@@ -45,89 +45,109 @@ router.get('/', function (req, res, next) {
 });
 
 
-router.post('/register', function (req, res, next) {
+router.post('/register', async function (req, res, next) {
   const { username, password } = req.body;
   const email = req.body.email.toLowerCase();
-  console.log(email);
-  
+
+
   // Ottieni la collezione "user" dal database
+  const client = await MongoClient.connect(uri, { useNewUrlParser: true });
+  const database = client.db("Users");
   const collection = database.collection("user");
+  try {
+    // Verifica se l'email esiste già nella collezione
+    collection.findOne({ email: email }, (error, existingUser) => {
+      if (error) {
+        res.status(500).json({ error: "Si è verificato un errore durante la registrazione dell'utente." });
+      } else if (existingUser) {
+        res.status(409).json({ error: "L'email è già registrata. Si prega di utilizzare un'email diversa." });
+      } else {
+        hashPassword(password)
+          .then((hash) => {
+            // Crea un nuovo documento da inserire nel database
+            const newUser = {
+              username,
+              email,
+              password: hash
+            };
 
-  // Verifica se l'email esiste già nella collezione
-  collection.findOne({ email: email }, (error, existingUser) => {
-    if (error) {
-      res.status(500).json({ error: "Si è verificato un errore durante la registrazione dell'utente." });
-    } else if (existingUser) {
-      res.status(409).json({ error: "L'email è già registrata. Si prega di utilizzare un'email diversa." });
-    } else {
-      hashPassword(password)
-        .then((hash) => {
-          // Crea un nuovo documento da inserire nel database
-          const newUser = {
-            username,
-            email,
-            password: hash
-          };
-
-          // Inserisci il nuovo documento nella collezione
-          collection.insertOne(newUser, (error, result) => {
-            if (error) {
-              res.status(500).json({ error: "Si è verificato un errore durante la registrazione dell'utente." });
-            } else {
-              res.status(200).json({ message: "Utente registrato con successo!" });
-            }
+            // Inserisci il nuovo documento nella collezione
+            collection.insertOne(newUser, (error, result) => {
+              if (error) {
+                res.status(500).json({ error: "Si è verificato un errore durante la registrazione dell'utente." });
+              } else {
+                res.status(200).json({ message: "Utente registrato con successo!" });
+                client.close();
+              }
+            });
           });
-        });
-    }
-  });
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Errore nella ricerca dell'amministratore" });
+  }
 });
 
 //collection.findOne({ $and: [{ email: email }] }, 
 
 
-router.post('/login', function (req, res, next) {
+router.post('/login', async function (req, res, next) {
   const { password } = req.body;
-  const email=req.body.email.toLowerCase()
-  const collection = database.collection("user");
-  collection.findOne({ email: email }, function (err, user) {
-    if (err) {
-   } else {
-      if (user) {
-        bcrypt.compare(password, user.password, function(err, resp) {
-          if (err){
-            res.status(500).json({ error: "Si è verificato un errore durante la ricerca dell'utente." });
-          }
-          if (resp) {
-            res.status(200).send(user);
-          } else {
-            // response is OutgoingMessage object that server response http request
-            res.status(404).json({ message: "E-mail o passaword errati" });
-          }
-        }); 
-        // Utente trovato
+  try {
+    const email = req.body.email.toLowerCase()
+    const client = await MongoClient.connect(uri, { useNewUrlParser: true });
+    const database = client.db("Users");
+    const collection = database.collection("user");
+    collection.findOne({ email: email }, function (err, user) {
+      if (err) {
       } else {
-        // Nessun utente trovato con l'email specificata
-        res.status(404).json({ message: "Nessun utente trovato con l'email specificata." });
+        if (user) {
+          bcrypt.compare(password, user.password, function (err, resp) {
+            if (err) {
+              res.status(500).json({ error: "Si è verificato un errore durante la ricerca dell'utente." });
+            }
+            if (resp) {
+              res.status(200).send(user);
+            } else {
+              // response is OutgoingMessage object that server response http request
+              res.status(404).json({ message: "E-mail o passaword errati" });
+            }
+          });
+          // Utente trovato
+        } else {
+          // Nessun utente trovato con l'email specificata
+          res.status(404).json({ message: "Nessun utente trovato con l'email specificata." });
+          client.close();
+        }
       }
-    }
-  });
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Errore nell'accesso" });
+  }
 });
 
 router.post('/ammin', async function (req, res, next) {
-  const { id }= req.body;
-  const collection = database.collection("Administrators");
-  collection.findOne({ nick_amm: id }, function (err, user) {
-    if (err) {
+  const { id } = req.body;
+  try {
+    const client = await MongoClient.connect(uri, { useNewUrlParser: true });
+    const database = client.db("Users");
+    const collection = database.collection("Administrators");
+    collection.findOne({ nick_amm: id }, function (err, user) {
+      if (err) {
 
-    }else{
+      } else {
 
-      if (user) {
-        res.status(200).send(user)
-      }else{
-        res.status(404)
+        if (user) {
+          res.status(200).send(user)
+          client.close();
+        } else {
+          res.status(404)
+        }
       }
-    }
-  });
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Errore nella ricerca dell'amministratore" });
+  }
 });
 
 

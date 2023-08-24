@@ -24,6 +24,7 @@ async function connect() {
 
 connect();
 
+
 //Le foto caricate vengono aggiunte nella cartella public/images con il nome in base alla data
 var storage = multer.diskStorage({
     destination: (req, file, callBack) => {
@@ -110,6 +111,7 @@ router.get('/last_build',  function (req, res, next) {
 router.get('/cerca', function (req, res, next) {
   const { locali, bagni, prezzoMin, prezzoMax, tipologia, superficieMin, superficieMax} = req.query;
   const collection = database.collection("buildings");
+  console.log(collection);
   const query = {
     tipologia: tipologia
   };

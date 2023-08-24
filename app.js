@@ -3,36 +3,45 @@ var express = require('express');
 var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
-var cors = require('cors');
-
-var indexRouter = require('./routes/index');
-var usersRouter = require('./routes/users');
-var insert = require('./routes/inserimento');
-
 var app = express();
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'jade');
 
-app.use(logger('dev'));
+// Middleware per la gestione delle richieste CORS
+const cors = require('cors');
+const corsOptions = {
+  origin: ['https://sifim.netlify.app', 'http://localhost:3000'],
+  credentials: true,
+  optionSuccessStatus: 200
+};
+app.use(cors(corsOptions));
+
+// Middleware per il parsing del corpo della richiesta e i cookie
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
+
+// Middleware per il logging delle richieste
+app.use(logger('dev'));
+
+// Middleware per i file statici
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(cors());
 
 
-const corsOptions ={
-    origin:['https://sifim.netlify.app', 'http://localhost:3000'], 
-    credentials:true,            //access-control-allow-credentials:true
-    optionSuccessStatus:200
-}
-app.use(cors(corsOptions));
-
+// Router per l'endpoint principale
+const indexRouter = require('./routes/index');
 app.use('/', indexRouter);
+
+// Router per gli utenti
+const usersRouter = require('./routes/users');
 app.use('/users', usersRouter);
-app.use('/inserBuild', insert);
+
+// Router per l'inserimento di edifici
+const insertRouter = require('./routes/apiRoutes');
+app.use('/inserBuild', insertRouter);
+
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
