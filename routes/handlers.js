@@ -168,7 +168,7 @@ const handleCerca = async (req, res) => {
             }
         }
 
-        collection.find(query).toArray((error, results) => {
+        collection.find(query).sort({ dataInserimento: -1 }).toArray((error, results) => {
             if (error) {
                 res.status(500).json({ error: "Si è verificato un errore durante la ricerca nella collezione." });
             } else {
